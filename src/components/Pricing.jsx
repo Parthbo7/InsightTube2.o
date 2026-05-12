@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Pricing = () => {
   const [isYearly, setIsYearly] = useState(true);
+  const { openAuthModal } = useAuth();
 
   const plans = [
     {
@@ -100,7 +102,7 @@ const Pricing = () => {
                 ))}
               </ul>
 
-              <button className={`w-full py-4 rounded-xl font-bold transition-all duration-300 ${plan.popular ? 'btn-primary' : 'bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
+              <button onClick={openAuthModal} className={`w-full py-4 rounded-xl font-bold transition-all duration-300 flex justify-center items-center cursor-pointer ${plan.popular ? 'btn-primary' : 'bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
                 {plan.cta}
               </button>
             </div>

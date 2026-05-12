@@ -14,8 +14,11 @@ import {
   Bell,
   Sun,
   Moon,
-  Bot
+  Bot,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -62,7 +65,7 @@ const Sidebar = () => {
         })}
         
         <div className="mt-auto pt-8 flex flex-col gap-2">
-          <Link to="/dashboard/settings" className="relative group px-4 py-3 flex items-center gap-3 rounded-xl transition-all duration-300 hover:bg-black/5 dark:hover:bg-white/5">
+          <Link to="/settings" className="relative group px-4 py-3 flex items-center gap-3 rounded-xl transition-all duration-300 hover:bg-black/5 dark:hover:bg-white/5">
             <Settings size={20} className="text-[#666666] dark:text-[#A1A1AA] group-hover:text-[#111111] dark:group-hover:text-white transition-colors" />
             <span className="font-medium text-sm text-[#666666] dark:text-[#A1A1AA] group-hover:text-[#111111] dark:group-hover:text-white transition-colors">Settings</span>
           </Link>
@@ -81,6 +84,19 @@ const Sidebar = () => {
 };
 
 const TopNav = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'GU'; // Guest User
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme');
@@ -170,10 +186,14 @@ const TopNav = () => {
           <span className="text-sm font-semibold text-[#111111] dark:text-white">AI Assistant</span>
         </button>
 
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#111111] to-[#333333] dark:from-[#333333] dark:to-[#555555] border-2 border-white dark:border-[#1A1A24] shadow-sm ml-2 overflow-hidden flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
-           {/* Placeholder for avatar */}
-           <span className="text-white text-xs font-bold">JD</span>
-        </div>
+        <Link 
+          to="/settings"
+          title="Account Settings"
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-[#111111] to-[#333333] dark:from-[#333333] dark:to-[#555555] border-2 border-white dark:border-[#1A1A24] shadow-sm ml-2 overflow-hidden flex items-center justify-center cursor-pointer hover:scale-105 transition-transform relative group block"
+        >
+           <span className="text-white text-xs font-bold group-hover:hidden">{getInitials(user?.user_metadata?.full_name || user?.email || user?.name)}</span>
+           <Settings size={14} className="text-white hidden group-hover:block" />
+        </Link>
       </div>
     </div>
   );

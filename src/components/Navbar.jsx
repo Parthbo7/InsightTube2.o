@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sun, Moon, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { openAuthModal } = useAuth();
 
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -96,13 +98,13 @@ const Navbar = () => {
             </AnimatePresence>
           </button>
 
-          <Link to="/login" className="hidden sm:block text-sm font-semibold text-[#555555] hover:text-[#111111] dark:text-gray-400 dark:hover:text-white px-4 py-2 transition-colors">
+          <button onClick={openAuthModal} className="hidden sm:block text-sm font-semibold text-[#555555] hover:text-[#111111] dark:text-gray-400 dark:hover:text-white px-4 py-2 transition-colors cursor-pointer">
             Sign In
-          </Link>
+          </button>
           
-          <Link to="/signup" className="btn-primary text-sm !px-5 !py-2">
+          <button onClick={openAuthModal} className="btn-primary text-sm !px-5 !py-2 cursor-pointer">
             Get Started
-          </Link>
+          </button>
 
           {/* Mobile Menu Toggle */}
           <button 
@@ -137,7 +139,7 @@ const Navbar = () => {
               </Link>
             ))}
             <hr className="border-black/5 dark:border-white/10 my-2" />
-            <Link to="/login" className="px-4 py-3 text-[#555555] dark:text-gray-400 hover:text-[#111111] dark:hover:text-white hover:bg-brand-red/5 rounded-xl font-medium">Sign In</Link>
+            <button onClick={() => { setIsMobileMenuOpen(false); openAuthModal(); }} className="w-full text-left px-4 py-3 text-[#555555] dark:text-gray-400 hover:text-[#111111] dark:hover:text-white hover:bg-brand-red/5 rounded-xl font-medium cursor-pointer">Sign In</button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster, toast } from 'react-hot-toast';
+import { supabase, getProjects, createProject, getAnalyses, saveAnalysis } from '../lib/supabase';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -76,8 +78,123 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, delay }) => (
 );
 
 const Dashboard = () => {
+  const [projects, setProjects] = useState([]);
+  const [analyses, setAnalyses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+  const [isSubmittingAnalysis, setIsSubmittingAnalysis] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+
+    // Set up Realtime subscriptions
+    const projectSub = supabase.channel('public:projects')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+        fetchData();
+        toast.success('Projects updated in real-time');
+      })
+      .subscribe();
+
+    const analysisSub = supabase.channel('public:youtube_analyses')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'youtube_analyses' }, payload => {
+        fetchData();
+        toast.success('Analyses updated in real-time');
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(projectSub);
+      supabase.removeChannel(analysisSub);
+    };
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [projData, anData] = await Promise.all([getProjects(), getAnalyses()]);
+      setProjects(projData);
+      setAnalyses(anData);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    setIsSubmittingProject(true);
+    const form = e.target;
+    const title = form.title.value;
+    const desc = form.description.value;
+    try {
+      await createProject(title, desc);
+      toast.success('Project created successfully');
+      form.reset();
+    } catch (error) {
+      toast.error('Error creating project');
+    } finally {
+      setIsSubmittingProject(false);
+    }
+  };
+
+  const handleSaveAnalysis = async (e) => {
+    e.preventDefault();
+    setIsSubmittingAnalysis(true);
+    const form = e.target;
+    const url = form.url.value;
+    const summary = form.summary.value;
+    try {
+      await saveAnalysis(url, 'Sample transcript text', summary);
+      toast.success('Analysis saved successfully');
+      form.reset();
+    } catch (error) {
+      toast.error('Error saving analysis');
+    } finally {
+      setIsSubmittingAnalysis(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
+      <Toaster position="top-right" />
+
+      {/* Supabase MVP Operations Forms */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/75 dark:bg-[#121218]/75 backdrop-blur-xl border border-black/5 dark:border-white/[0.06] rounded-3xl p-6 shadow-sm">
+          <h3 className="text-xl font-bold mb-4 dark:text-white">Create Project</h3>
+          <form onSubmit={handleCreateProject} className="space-y-3">
+            <input name="title" required placeholder="Project Title" className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl p-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/20" />
+            <input name="description" placeholder="Description" className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl p-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/20" />
+            <button disabled={isSubmittingProject} className="w-full bg-[#FF1744] text-white rounded-xl p-3 font-bold hover:bg-[#E0002A] transition-colors disabled:opacity-50">
+              {isSubmittingProject ? 'Saving...' : 'Save Project'}
+            </button>
+          </form>
+          
+          <div className="mt-4 max-h-32 overflow-y-auto">
+            {isLoading ? <div className="text-sm dark:text-white">Loading projects...</div> : 
+             projects.map(p => (
+               <div key={p.id} className="text-sm py-1 border-b border-black/5 dark:border-white/5 dark:text-[#A1A1AA]">
+                 <strong className="dark:text-white">{p.title}</strong> - {p.description}
+               </div>
+             ))
+            }
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/75 dark:bg-[#121218]/75 backdrop-blur-xl border border-black/5 dark:border-white/[0.06] rounded-3xl p-6 shadow-sm">
+          <h3 className="text-xl font-bold mb-4 dark:text-white">Save Analysis</h3>
+          <form onSubmit={handleSaveAnalysis} className="space-y-3">
+            <input name="url" required placeholder="YouTube URL" className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl p-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/20" />
+            <input name="summary" required placeholder="Summary" className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-xl p-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/20" />
+            <button disabled={isSubmittingAnalysis} className="w-full bg-[#FF1744] text-white rounded-xl p-3 font-bold hover:bg-[#E0002A] transition-colors disabled:opacity-50">
+              {isSubmittingAnalysis ? 'Saving...' : 'Save Analysis'}
+            </button>
+          </form>
+        </motion.div>
+      </div>
+
       
       {/* Top Row: Main Graph + Live Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -277,7 +394,7 @@ const Dashboard = () => {
                  </tr>
                </thead>
                <tbody>
-                 {videosData.map((video, i) => (
+                 {(analyses.length > 0 ? analyses : videosData).slice(0, 5).map((video, i) => (
                    <motion.tr 
                      initial={{ opacity: 0, x: -10 }}
                      animate={{ opacity: 1, x: 0 }}
@@ -288,18 +405,18 @@ const Dashboard = () => {
                      <td className="py-4 border-b border-black/5 dark:border-white/5">
                         <div className="flex items-center gap-4">
                            <div className="w-24 h-14 rounded-lg overflow-hidden relative">
-                              <img src={video.thumb} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <img src={video.thumb || 'https://images.unsplash.com/photo-1616763355548-1b606f439f86?q=80&w=200&auto=format&fit=crop'} alt={video.title || 'Video'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
                            </div>
                            <div>
-                              <div className="text-sm font-bold text-[#111111] dark:text-white mb-1 line-clamp-1">{video.title}</div>
-                              <div className="text-xs text-[#666666] dark:text-[#A1A1AA]">{video.published}</div>
+                              <div className="text-sm font-bold text-[#111111] dark:text-white mb-1 line-clamp-1">{video.summary || video.title}</div>
+                              <div className="text-xs text-[#666666] dark:text-[#A1A1AA]">{video.video_url || video.published}</div>
                            </div>
                         </div>
                      </td>
-                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-semibold text-[#111111] dark:text-white">{video.views}</td>
-                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-bold text-[#FF1744] dark:text-[#FF3B3B]">{video.ctr}</td>
-                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-medium text-[#666666] dark:text-[#A1A1AA]">{video.engagement}</td>
+                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-semibold text-[#111111] dark:text-white">{video.views || '1K+'}</td>
+                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-bold text-[#FF1744] dark:text-[#FF3B3B]">{video.ctr || '10%'}</td>
+                     <td className="py-4 border-b border-black/5 dark:border-white/5 text-right font-medium text-[#666666] dark:text-[#A1A1AA]">{video.engagement || '9/10'}</td>
                    </motion.tr>
                  ))}
                </tbody>

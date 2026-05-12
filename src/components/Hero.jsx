@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, TrendingUp, BarChart3, PlayCircle } from 'lucide-react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const Hero = () => {
+  const { openAuthModal } = useAuth();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 
@@ -99,14 +101,14 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-20" style={{ transform: "translateZ(40px)" }}>
-            <Link to="/signup" className="btn-primary text-lg !px-8 !py-4 flex items-center gap-2 group relative overflow-hidden">
+            <button onClick={openAuthModal} className="btn-primary text-lg !px-8 !py-4 flex items-center gap-2 group relative overflow-hidden cursor-pointer">
               <span className="relative z-10 flex items-center gap-2">
                 Get Started Free
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </span>
               {/* Button Shimmer */}
               <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0" />
-            </Link>
+            </button>
             <Link to="/demo" className="glass-card !border-black/10 dark:!border-white/10 hover:!bg-white dark:hover:!bg-white/5 text-[#111111] dark:text-white font-semibold text-lg !px-8 !py-4 rounded-xl flex items-center gap-2 transition-all group">
               <PlayCircle size={24} className="text-brand-red group-hover:scale-110 transition-transform" />
               Watch Demo

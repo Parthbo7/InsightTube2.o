@@ -11,6 +11,8 @@ import ConnectionStatus from './components/ConnectionStatus';
 import { AuthProvider } from './context/AuthContext';
 import AuthModal from './components/AuthModal';
 import Settings from './pages/Settings';
+import Analytics from './pages/Analytics';
+import Videos from './pages/Videos';
 
 function App() {
   return (
@@ -46,6 +48,8 @@ function App() {
           {/* Dashboard Routes */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="videos" element={<Videos />} />
           </Route>
 
           {/* Standalone Pages */}

@@ -7,7 +7,8 @@ const ConnectionStatus = () => {
   const checkConnection = async () => {
     setStatus('checking');
     try {
-      const { error } = await supabase.from('projects').select('id').limit(1);
+      // Use auth.getSession() as a health check — works without any tables
+      const { error } = await supabase.auth.getSession();
       if (error) {
         console.error('Supabase connection error:', error.message);
         setStatus('failed');

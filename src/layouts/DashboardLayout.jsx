@@ -18,6 +18,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useChannel } from '../context/ChannelContext';
 import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -83,8 +84,32 @@ const Sidebar = () => {
   );
 };
 
+const ChannelAvatar = ({ src, name, size = "w-6 h-6", border = "" }) => {
+  const [error, setError] = useState(false);
+  const initials = name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'YT';
+  
+  if (error || !src) {
+    return (
+      <div className={`${size} rounded-full flex items-center justify-center text-[10px] font-black text-white bg-gradient-to-br from-[#FF1744] to-[#B00020] ${border} shrink-0 select-none`}>
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={src} 
+      alt={name} 
+      onError={() => setError(true)}
+      className={`${size} rounded-full object-cover ${border} shrink-0`} 
+    />
+  );
+};
+
 const TopNav = () => {
   const { user, logout } = useAuth();
+  const { channels, activeChannel, changeActiveChannel, isSyncing, lastSyncedText } = useChannel();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -158,6 +183,86 @@ const TopNav = () => {
       </div>
 
       <div className="flex items-center gap-4">
+        {activeChannel && (
+          <div className="flex items-center gap-3 mr-2">
+            {/* Sync status */}
+            <div className="hidden md:flex items-center gap-1.5 text-xs text-[#666666] dark:text-[#A1A1AA] bg-white/40 dark:bg-[#121218]/40 border border-black/5 dark:border-white/[0.06] px-3.5 py-2 rounded-full">
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isSyncing ? 'bg-amber-400' : 'bg-green-400'} opacity-75`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? 'bg-amber-500' : 'bg-green-500'}`}></span>
+              </span>
+              <span className="font-medium text-[11px]">
+                {isSyncing ? 'Syncing...' : `Synced: ${lastSyncedText}`}
+              </span>
+            </div>
+
+            {/* Dropdown channel switcher */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 bg-white/60 dark:bg-[#121218]/60 border border-black/5 dark:border-white/[0.06] px-3.5 py-2 rounded-full shadow-sm hover:shadow-md hover:bg-white dark:hover:bg-[#1A1A24] transition-all cursor-pointer text-xs font-bold text-[#111111] dark:text-white"
+              >
+                <ChannelAvatar 
+                  src={activeChannel.thumbnail_url} 
+                  name={activeChannel.channel_name} 
+                  size="w-5 h-5"
+                  border="border border-[#FF1744]/20" 
+                />
+                <span className="max-w-[100px] truncate">{activeChannel.channel_name}</span>
+                <span className="text-[9px] text-[#FF1744] dark:text-[#FF3B3B]">▼</span>
+              </button>
+              
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                      className="absolute right-0 mt-2 w-56 rounded-2xl bg-white/95 dark:bg-[#121218]/95 backdrop-blur-2xl border border-black/5 dark:border-white/[0.08] shadow-2xl p-2 z-50 overflow-hidden"
+                    >
+                      <div className="text-[10px] font-bold text-[#888] dark:text-[#666] tracking-wider uppercase px-3 py-1.5 border-b border-black/5 dark:border-white/5">
+                        Switch Channel
+                      </div>
+                      <div className="max-h-48 overflow-y-auto mt-1 space-y-0.5">
+                        {channels.map((ch) => {
+                          const isActive = ch.id === activeChannel.id;
+                          return (
+                            <button
+                              key={ch.id}
+                              onClick={() => {
+                                changeActiveChannel(ch.id);
+                                setIsDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-left border ${
+                                isActive 
+                                  ? 'bg-[#FF1744]/10 dark:bg-[#FF3B3B]/15 border-[#FF1744]/30 dark:border-[#FF3B3B]/30 font-bold text-[#FF1744] dark:text-[#FF3B3B]' 
+                                  : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-[#111] dark:text-white'
+                              }`}
+                            >
+                              <ChannelAvatar 
+                                src={ch.thumbnail_url} 
+                                name={ch.channel_name} 
+                                size="w-6 h-6" 
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-xs truncate ${isActive ? 'text-[#FF1744] dark:text-[#FF3B3B]' : 'text-[#111] dark:text-white'}`}>{ch.channel_name}</div>
+                                <div className="text-[9px] text-[#666] dark:text-[#A1A1AA] truncate">{(ch.subscriber_count || 0).toLocaleString()} subs</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
         <button 
           onClick={toggleTheme}
           className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[#666666] dark:text-[#A1A1AA] hover:text-[#111111] dark:hover:text-white relative overflow-hidden"

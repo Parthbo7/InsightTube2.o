@@ -156,3 +156,133 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ==================================================
+-- YOUTUBE CHANNELS & ANALYTICS INTEGRATION
+-- ==================================================
+
+CREATE TABLE IF NOT EXISTS public.channels (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    channel_name TEXT,
+    channel_id TEXT UNIQUE,
+    youtube_handle TEXT,
+    youtube_url TEXT,
+    api_source TEXT DEFAULT 'youtube',
+    thumbnail_url TEXT,
+    banner_url TEXT,
+    subscriber_count BIGINT DEFAULT 0,
+    video_count BIGINT DEFAULT 0,
+    view_count BIGINT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Ensure banner_url exists in public.channels
+ALTER TABLE public.channels ADD COLUMN IF NOT EXISTS banner_url TEXT;
+
+CREATE TABLE IF NOT EXISTS public.channel_analytics (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    channel_id UUID REFERENCES public.channels(id) ON DELETE CASCADE,
+    total_views BIGINT DEFAULT 0,
+    total_watch_time BIGINT DEFAULT 0,
+    total_subscribers BIGINT DEFAULT 0,
+    total_videos BIGINT DEFAULT 0,
+    engagement_rate NUMERIC DEFAULT 0,
+    ctr NUMERIC DEFAULT 0,
+    revenue_estimate NUMERIC DEFAULT 0,
+    analytics_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.videos (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    channel_id UUID REFERENCES public.channels(id) ON DELETE CASCADE,
+    youtube_video_id TEXT UNIQUE,
+    title TEXT,
+    thumbnail TEXT,
+    views BIGINT DEFAULT 0,
+    likes BIGINT DEFAULT 0,
+    comments BIGINT DEFAULT 0,
+    published_at TIMESTAMP WITH TIME ZONE,
+    ctr NUMERIC DEFAULT 0,
+    engagement_rate NUMERIC DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_settings (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    default_channel_id UUID REFERENCES public.channels(id) ON DELETE SET NULL,
+    youtube_api_key TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.audience_demographics (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    channel_id UUID REFERENCES public.channels(id) ON DELETE CASCADE,
+    age_group TEXT,
+    gender TEXT,
+    percentage NUMERIC DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for all new tables
+ALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.channel_analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audience_demographics ENABLE ROW LEVEL SECURITY;
+
+-- Channels Policies
+DROP POLICY IF EXISTS "Users can manage their own channels" ON public.channels;
+CREATE POLICY "Users can manage their own channels" ON public.channels
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Channel Analytics Policies
+DROP POLICY IF EXISTS "Users can view own channel analytics" ON public.channel_analytics;
+CREATE POLICY "Users can view own channel analytics" ON public.channel_analytics
+    FOR SELECT USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );
+DROP POLICY IF EXISTS "Users can manage own channel analytics" ON public.channel_analytics;
+CREATE POLICY "Users can manage own channel analytics" ON public.channel_analytics
+    FOR ALL USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    ) WITH CHECK (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );
+
+-- Videos Policies
+DROP POLICY IF EXISTS "Users can view own channel videos" ON public.videos;
+CREATE POLICY "Users can view own channel videos" ON public.videos
+    FOR SELECT USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );
+DROP POLICY IF EXISTS "Users can manage own channel videos" ON public.videos;
+CREATE POLICY "Users can manage own channel videos" ON public.videos
+    FOR ALL USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    ) WITH CHECK (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );
+
+-- User Settings Policies
+DROP POLICY IF EXISTS "Users can manage their own settings" ON public.user_settings;
+CREATE POLICY "Users can manage their own settings" ON public.user_settings
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Audience Demographics Policies
+DROP POLICY IF EXISTS "Users can view own channel demographics" ON public.audience_demographics;
+CREATE POLICY "Users can view own channel demographics" ON public.audience_demographics
+    FOR SELECT USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );
+DROP POLICY IF EXISTS "Users can manage own channel demographics" ON public.audience_demographics;
+CREATE POLICY "Users can manage own channel demographics" ON public.audience_demographics
+    FOR ALL USING (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    ) WITH CHECK (
+        channel_id IN (SELECT id FROM public.channels WHERE user_id = auth.uid())
+    );

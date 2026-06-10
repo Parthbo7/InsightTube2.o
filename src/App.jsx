@@ -9,15 +9,19 @@ import Pricing from './pages/Pricing';
 import Dashboard from './pages/Dashboard';
 import ConnectionStatus from './components/ConnectionStatus';
 import { AuthProvider } from './context/AuthContext';
+import { ChannelProvider } from './context/ChannelContext';
 import AuthModal from './components/AuthModal';
 import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
 import Videos from './pages/Videos';
+import Revenue from './pages/Revenue';
+import Audience from './pages/Audience';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <ChannelProvider>
         <Toaster 
           position="bottom-right"
           containerStyle={{ zIndex: 9999 }}
@@ -50,11 +54,14 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="videos" element={<Videos />} />
+            <Route path="audience" element={<Audience />} />
+            <Route path="revenue" element={<Revenue />} />
           </Route>
 
           {/* Standalone Pages */}
           <Route path="/settings" element={<Settings />} />
         </Routes>
+        </ChannelProvider>
       </Router>
     </AuthProvider>
   );

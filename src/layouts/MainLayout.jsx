@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import GlowBackground from '../components/GlowBackground';
 
+
 const MainLayout = () => {
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
@@ -13,6 +14,7 @@ const MainLayout = () => {
         <Outlet />
       </main>
       <Footer />
+
     </div>
   );
 };

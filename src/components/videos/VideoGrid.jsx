@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, MousePointerClick, Clock, TrendingUp, Zap, AlertTriangle, Flame, Sparkles, Play, ChevronDown } from 'lucide-react';
+import { useChannel } from '../../context/ChannelContext';
+import { Eye, MousePointerClick, TrendingUp, Zap, AlertTriangle, Flame, Sparkles, Play, ChevronDown } from 'lucide-react';
 
-// ── Mock Video Data ──────────────────────────────────────────────
-const allVideos = [
+// ── Mock Video Data for fallback/demo ────────────────────────────
+const fallbackVideos = [
   {
     id: 1,
     title: 'The Future of Generative AI in Content Creation',
-    uploaded: 'Oct 12, 2023',
+    uploaded: 'Oct 12, 2025',
     duration: '12:45',
     views: 1200000,
     ctr: 8.4,
@@ -20,7 +21,7 @@ const allVideos = [
   {
     id: 2,
     title: 'Neural Processing Pipelines Explained',
-    uploaded: 'Oct 10, 2023',
+    uploaded: 'Oct 10, 2025',
     duration: '08:12',
     views: 458000,
     ctr: 12.1,
@@ -32,8 +33,8 @@ const allVideos = [
   },
   {
     id: 3,
-    title: 'Mastering the Creator Economy in 2024',
-    uploaded: 'Oct 08, 2023',
+    title: 'Mastering the Creator Economy in 2026',
+    uploaded: 'Oct 08, 2025',
     duration: '26:30',
     views: 89000,
     ctr: 2.1,
@@ -46,7 +47,7 @@ const allVideos = [
   {
     id: 4,
     title: 'Neural Algorithms & You: Complete Guide',
-    uploaded: 'Oct 05, 2023',
+    uploaded: 'Oct 05, 2025',
     duration: '15:00',
     views: 912000,
     ctr: 9.8,
@@ -59,7 +60,7 @@ const allVideos = [
   {
     id: 5,
     title: 'Production Value at Scale: Cinematic YouTube',
-    uploaded: 'Oct 01, 2023',
+    uploaded: 'Oct 01, 2025',
     duration: '05:45',
     views: 2400000,
     ctr: 15.2,
@@ -72,7 +73,7 @@ const allVideos = [
   {
     id: 6,
     title: 'Minimalist Studio Setup Tutorial',
-    uploaded: 'Sep 28, 2023',
+    uploaded: 'Sep 28, 2025',
     duration: '18:22',
     views: 312000,
     ctr: 5.5,
@@ -86,8 +87,8 @@ const allVideos = [
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatViews = (n) => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
   return n.toString();
 };
 
@@ -213,13 +214,24 @@ const VideoCard = ({ video, index }) => {
   const [isHovered, setIsHovered] = useState(false);
   const cfg = labelConfig[video.label] || labelConfig['AI High'];
   const LabelIcon = cfg.icon;
-  const sparkData = [3, 5, 2, 7, 4, 8, 6, 9, 5, 7];
+  
+  // Deterministic sparkline based on title for visual flare
+  const getSparkData = () => {
+    let hash = 0;
+    for (let i = 0; i < video.title.length; i++) {
+      hash = video.title.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const base = Math.abs(hash % 5) + 3;
+    return [base, base + 2, base - 1, base + 3, base + 1, base + 4, base + 2];
+  };
+
+  const sparkData = getSparkData();
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.15 + index * 0.08, ease: [0.2, 0.8, 0.2, 1] }}
+      transition={{ duration: 0.5, delay: 0.05 + index * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
       whileHover={{ y: -6 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
@@ -334,15 +346,73 @@ const VideoCard = ({ video, index }) => {
 
 // ── Video Grid ───────────────────────────────────────────────────
 const VideoGrid = ({ activeFilter }) => {
+  const { videos, isLoading, activeChannel } = useChannel();
+  
+  // Transform real channel videos to fit VideoCard structure
+  const getProcessedVideos = () => {
+    // If no real database records or still in demo fallback channel, return mock
+    if (!videos || videos.length === 0 || activeChannel?.id === 'mock-channel-id') {
+      return fallbackVideos;
+    }
+
+    return videos.map((v, i) => {
+      // engagement_rate is out of 100 on the database. Convert to rating out of 5
+      const rating = Math.min(5, Math.max(1, Math.round((v.engagement_rate || 5) / 2)));
+      // Retention: generate a realistic value correlated with engagement rate
+      const retention = Math.min(95, Math.max(20, Math.floor((v.engagement_rate || 5) * 8.5)));
+      
+      const label = v.ctr >= 10 ? 'Viral Potential' : v.engagement_rate >= 8 ? 'Trending' : 'AI High';
+      const category = v.ctr >= 10 ? 'High CTR' : v.engagement_rate < 4 ? 'Underperforming' : 'Long-form';
+
+      // Duration: format mock duration
+      const duration = '11:40';
+
+      return {
+        id: v.id || v.youtube_video_id || i,
+        title: v.title,
+        uploaded: new Date(v.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        duration,
+        views: parseInt(v.views) || 0,
+        ctr: parseFloat(v.ctr) || 0,
+        engagement: rating,
+        retention,
+        label,
+        category,
+        thumb: v.thumbnail
+      };
+    });
+  };
+
+  const processedVideos = getProcessedVideos();
+
   const filteredVideos =
     activeFilter === 'All Content'
-      ? allVideos
-      : allVideos.filter(
+      ? processedVideos
+      : processedVideos.filter(
           (v) =>
             v.category === activeFilter ||
             v.label === activeFilter ||
             (activeFilter === 'AI Recommended' && (v.label === 'AI High' || v.label === 'Viral Potential'))
         );
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-white/75 dark:bg-[#121218]/75 rounded-3xl p-5 border border-black/5 dark:border-white/[0.06] animate-pulse space-y-4">
+            <div className="aspect-video bg-black/10 dark:bg-white/10 rounded-2xl" />
+            <div className="h-4 bg-black/10 dark:bg-white/10 rounded w-5/6" />
+            <div className="h-3 bg-black/10 dark:bg-white/10 rounded w-1/2" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-10 bg-black/10 dark:bg-white/10 rounded-xl" />
+              <div className="h-10 bg-black/10 dark:bg-white/10 rounded-xl" />
+            </div>
+            <div className="h-2 bg-black/10 dark:bg-white/10 rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -350,8 +420,8 @@ const VideoGrid = ({ activeFilter }) => {
       className="mb-8"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredVideos.map((video, i) => (
-          <VideoCard key={video.id} video={video} index={i} />
+        {filteredVideos.map((video, index) => (
+          <VideoCard key={video.id} video={video} index={index} />
         ))}
       </div>
 
@@ -366,7 +436,7 @@ const VideoGrid = ({ activeFilter }) => {
             <Play size={32} className="text-[#FF1744] dark:text-[#FF3B3B]" />
           </div>
           <h3 className="text-lg font-bold text-[#111111] dark:text-white mb-2">No videos found</h3>
-          <p className="text-sm text-[#666666] dark:text-[#A1A1AA]">Try adjusting your filters or upload new content.</p>
+          <p className="text-sm text-[#666666] dark:text-[#A1A1AA]">Try adjusting your filters or sync new content.</p>
         </motion.div>
       )}
 
